@@ -14,3 +14,4 @@ High-Risk Zone Map: a stylised map of a fictional region with selectable zones.
 Emergency Response Panel: evacuation guidance, safe zones, contacts and a checklist.
 AI Situation Briefing: a rule-based narrative for the selected scenario, zone or alert.
 
+live demo- https://vanshika946.github.io/raksh/
