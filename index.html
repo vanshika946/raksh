@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RakshNova – AI Disaster Intelligence &amp; Emergency Response</title>
+  <meta name="description" content="RakshNova is a hackathon prototype dashboard for AI-style disaster risk analysis, early warnings, high-risk zone mapping and emergency response planning, fed by live Open-Meteo weather and USGS earthquake data where labelled LIVE.">
+  <meta name="theme-color" content="#060a13">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body id="top">
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <div class="proto-strip" role="note">
+    <span class="proto-tag">PROTOTYPE</span>
+    <span>Region names, populations, shelters and the risk model are <b>fictional / simulated</b>. Weather (Open-Meteo) and earthquake (USGS) inputs are <b>live</b> where labelled <b class="tag-live">LIVE</b>; anything labelled <b class="tag-sim">SIMULATED</b> is generated in your browser. This is <b>not</b> official government or emergency data. In a real emergency, call your local emergency number (112 in India).</span>
+  </div>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#top" aria-label="RakshNova home">
+        <svg class="logo" viewBox="0 0 48 48" width="42" height="42" aria-hidden="true">
+          <defs>
+            <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#38d5ff"/>
+              <stop offset="1" stop-color="#7c5cff"/>
+            </linearGradient>
+          </defs>
+          <path d="M24 3 6 10v13c0 11 7.6 19.4 18 22 10.4-2.6 18-11 18-22V10z" fill="rgba(56,213,255,.08)" stroke="url(#lg)" stroke-width="2.4"/>
+          <path d="M11 25h7l3-8 5 15 4-10 2 3h7" fill="none" stroke="url(#lg)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="brand-text">
+          <strong>Raksh<em>Nova</em></strong>
+          <small>AI Disaster Intelligence &amp; Emergency Response</small>
+        </span>
+      </a>
+
+      <nav class="main-nav" aria-label="Page sections">
+        <a href="#live">Live Data</a>
+        <a href="#overview">Overview</a>
+        <a href="#analysis">Risk Analysis</a>
+        <a href="#alerts">Alerts</a>
+        <a href="#map">Zone Map</a>
+        <a href="#response">Response</a>
+        <a href="#briefing">AI Briefing</a>
+      </nav>
+
+      <div class="header-right">
+        <div class="status-pill lv-low" id="statusPill" role="status" aria-live="polite">
+          <span class="pulse-dot"></span>
+          <span class="status-copy"><small>Emergency status</small><b id="statusText">Initialising…</b></span>
+        </div>
+        <div class="clock" aria-label="Local time"><b id="clock">--:--:--</b><small>Local time</small></div>
+        <button type="button" class="btn btn-ghost btn-sm" id="resetBtnHeader">Reset</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="critical-banner" id="criticalBanner" role="alert" hidden>
+    <div class="container banner-inner">
+      <div class="siren" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20z"/><path d="M12 10v5"/><path d="M12 18h.01"/></svg>
+      </div>
+      <div class="banner-copy">
+        <small id="bannerSmall">CRITICAL EMERGENCY WARNING · SIMULATED</small>
+        <b id="bannerTitle">—</b>
+        <span id="bannerText">—</span>
+      </div>
+      <div class="banner-actions">
+        <button type="button" class="btn btn-light btn-sm" id="bannerOpen">Open response plan</button>
+        <button type="button" class="btn btn-outline-light btn-sm" id="bannerDismiss">Acknowledge</button>
+      </div>
+    </div>
+  </section>
+
+  <main id="main" class="container">
+
+    <!-- LIVE-STYLE STATS -->
+    <section class="stats" aria-label="Situation summary">
+      <article class="stat" id="statRiskCard">
+        <span class="stat-label">Regional risk index <span class="mode-tag m-wait" id="statModeTag">Connecting</span></span>
+        <b class="stat-value" id="statRisk">--</b>
+        <span class="stat-sub" id="statRiskSub">&nbsp;</span>
+        <span class="bar"><i id="statRiskBar"></i></span>
+      </article>
+      <article class="stat">
+        <span class="stat-label">People in affected zones</span>
+        <b class="stat-value" id="statPeople">--</b>
+        <span class="stat-sub" id="statPeopleSub">&nbsp;</span>
+      </article>
+      <article class="stat">
+        <span class="stat-label">Active alerts</span>
+        <b class="stat-value" id="statAlerts">--</b>
+        <span class="stat-sub" id="statAlertsSub">&nbsp;</span>
+      </article>
+      <article class="stat">
+        <span class="stat-label">High-risk zones</span>
+        <b class="stat-value" id="statZones">--</b>
+        <span class="stat-sub" id="statZonesSub">&nbsp;</span>
+      </article>
+      <article class="stat" id="statPriorityCard">
+        <span class="stat-label">Response priority</span>
+        <b class="stat-value stat-text" id="statPriority">--</b>
+        <span class="stat-sub" id="statPrioritySub">&nbsp;</span>
+      </article>
+    </section>
+    <p class="tick-note"><span class="live-dot off" id="tickDot" aria-hidden="true"></span><span id="tickLabel">Connecting to live feeds…</span></p>
+
+    <!-- 0. LIVE DATA -->
+    <section id="live" class="block">
+      <header class="section-head">
+        <span class="eyebrow">00 · Live data feeds</span>
+        <h2>Live Data Feeds <span class="mode-tag m-wait" id="liveOverallTag">Connecting</span></h2>
+        <p>Real current weather from <b>Open-Meteo</b> and real earthquakes from the <b>USGS</b> feed are fed into the risk calculation and refresh automatically. Region names stay fictional, so each region is tied to a real-world <b>reference point</b>. If a feed fails, its values are never estimated: the affected zones fall back to the labelled <b>SIMULATED</b> model.</p>
+      </header>
+
+      <div class="feed-grid">
+        <article class="panel feed-card" id="feedWeather"></article>
+        <article class="panel feed-card" id="feedQuake"></article>
+      </div>
+
+      <div class="panel live-panel">
+        <div class="panel-title"><span>Live readings by region</span><span class="chip">Reference points</span></div>
+        <div class="table-scroll"><table class="live-table" id="liveTable"></table></div>
+        <p class="fine">Signals are 0–100 inputs to the risk model, not official warnings. Rain columns show the past ~24 h and the next 24 h (model forecast).</p>
+      </div>
+
+      <div class="panel live-panel">
+        <div class="panel-title"><span>Earthquakes near the reference points</span><span class="chip">USGS · last 24 h</span></div>
+        <ul class="quake-list" id="quakeList"></ul>
+        <p class="fine">Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0). Earthquake data from the <a href="https://earthquake.usgs.gov/" target="_blank" rel="noopener">U.S. Geological Survey</a>. Outside the US the USGS feed is only complete for larger events (roughly M4.5+), so an empty list does not mean no tremors occurred.</p>
+      </div>
+    </section>
+
+    <!-- 1. OVERVIEW -->
+    <section id="overview" class="block">
+      <header class="section-head">
+        <span class="eyebrow">01 · Situation overview</span>
+        <h2>Disaster Overview</h2>
+        <p>Hazard picture for the fictional RakshNova monitoring region. Each card is labelled <b>LIVE</b> when its zones use live Open-Meteo / USGS inputs and <b>SIMULATED</b> otherwise. Select a card to pre-load that hazard into the risk analysis.</p>
+      </header>
+      <div class="overview-grid" id="overviewGrid"></div>
+    </section>
+
+    <!-- 2. RISK ANALYSIS -->
+    <section id="analysis" class="block">
+      <header class="section-head">
+        <span class="eyebrow">02 · AI risk analysis</span>
+        <h2>Risk Analysis Engine</h2>
+        <p>Choose a scenario and run the analysis. The score comes from a transparent, rule-based model — <b>not</b> a real predictive model. It uses live readings when they are available and says so; otherwise it is fully simulated.</p>
+      </header>
+
+      <div class="analysis-grid">
+        <form id="riskForm" class="panel form-panel" novalidate>
+          <div class="panel-title"><span>Scenario inputs</span><span class="chip chip-sim" id="formModeChip">Simulated</span></div>
+
+          <div class="field">
+            <label for="disasterType">Disaster type</label>
+            <select id="disasterType" name="disasterType"></select>
+          </div>
+
+          <div class="field">
+            <label for="location">Location</label>
+            <select id="location" name="location"></select>
+          </div>
+
+          <div class="field">
+            <label for="severity">Severity <output id="severityOut" for="severity">Major</output></label>
+            <input type="range" id="severity" name="severity" min="1" max="5" step="1" value="3">
+            <div class="range-scale" aria-hidden="true"><span>Minor</span><span>Moderate</span><span>Major</span><span>Severe</span><span>Extreme</span></div>
+          </div>
+
+          <fieldset class="field">
+            <legend>Population density</legend>
+            <div class="seg" id="densityGroup" role="radiogroup" aria-label="Population density">
+              <label><input type="radio" name="density" value="1"><span><b>Low</b><small>Rural</small></span></label>
+              <label><input type="radio" name="density" value="2" checked><span><b>Medium</b><small>Suburban</small></span></label>
+              <label><input type="radio" name="density" value="3"><span><b>High</b><small>Urban</small></span></label>
+              <label><input type="radio" name="density" value="4"><span><b>Very high</b><small>Dense metro</small></span></label>
+            </div>
+          </fieldset>
+
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="analyzeBtn">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/><path d="M11 8v6M8 11h6"/></svg>
+              Analyze Risk
+            </button>
+            <button type="button" class="btn btn-ghost" id="resetBtn">Reset dashboard</button>
+          </div>
+
+          <details class="how">
+            <summary>How the simulated score works</summary>
+            <p>Risk % = <b>40%</b> location hazard exposure for the chosen disaster + <b>35%</b> severity + <b>25%</b> population density, plus an amplifier when exposure and severity are both very high. Levels: Low &lt; 30, Moderate 30–54, High 55–77, Critical 78+.</p>
+            <p><b>Live inputs.</b> When the feed for the chosen region is LIVE, exposure blends the region's static susceptibility with a live 0–1 signal. Flood, fire and weather: <b>60% susceptibility + 40% live signal</b>. Earthquake: susceptibility plus 70% of its remaining headroom × the live signal (quiet periods never lower it, because earthquakes cannot be predicted).</p>
+            <p>Flood signal = rain over the past 24 h, forecast 24 h and the rate now. Fire = heat, dryness and gusts, damped by recent rain. Weather = gusts, rain rate, peak hourly rain and thunderstorm codes. Earthquake = magnitude and distance of USGS events within 300 km in the last 24 h. A small random variation is added <b>only</b> in SIMULATED mode.</p>
+          </details>
+        </form>
+
+        <div class="panel result-panel" id="resultPanel" aria-live="polite">
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+            <h3>No analysis yet</h3>
+            <p>Set the scenario on the left and press <b>Analyze Risk</b> to see the risk score, contributing factors and recommended action, with each input labelled LIVE or SIMULATED.</p>
+            <p class="sim-note">Prototype · rule-based analysis · not official emergency data</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. EARLY WARNING -->
+    <section id="alerts" class="block">
+      <header class="section-head">
+        <span class="eyebrow">03 · Early warning system</span>
+        <h2>Early Warning Alerts <span class="count-pill" id="alertCount">0</span></h2>
+        <p>Alerts come from zone risk scores (LIVE-informed where a live feed is available, SIMULATED otherwise) and from your own analyses. Each alert is labelled. Critical alerts trigger the emergency banner. These are prototype signals, not official warnings.</p>
+      </header>
+      <div class="alert-list" id="alertList"></div>
+    </section>
+
+    <!-- 4. MAP -->
+    <section id="map" class="block">
+      <header class="section-head">
+        <span class="eyebrow">04 · High-risk zone map</span>
+        <h2>High-Risk Zone Map</h2>
+        <p>A stylised map of a fictional region. A green dot on a marker means that zone currently uses live inputs. Select a zone marker to inspect risk, people affected and the recommended response.</p>
+      </header>
+
+      <div class="map-grid">
+        <div class="map-wrap panel">
+          <div class="map-toolbar">
+            <div class="chips" id="mapFilters" role="group" aria-label="Filter zones by disaster">
+              <button type="button" class="chip-btn active" data-filter="all">All</button>
+              <button type="button" class="chip-btn" data-filter="flood">Flood</button>
+              <button type="button" class="chip-btn" data-filter="earthquake">Earthquake</button>
+              <button type="button" class="chip-btn" data-filter="fire">Fire</button>
+              <button type="button" class="chip-btn" data-filter="weather">Weather</button>
+            </div>
+            <div class="legend" aria-label="Risk legend">
+              <span class="lv-low"><i></i>Low</span>
+              <span class="lv-moderate"><i></i>Moderate</span>
+              <span class="lv-high"><i></i>High</span>
+              <span class="lv-critical"><i></i>Critical</span>
+              <span class="lg-live"><i></i>Live inputs</span>
+            </div>
+          </div>
+
+          <div class="map-stage" id="mapStage">
+            <svg class="map-bg" viewBox="0 0 1000 620" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <pattern id="gridp" width="50" height="50" patternUnits="userSpaceOnUse">
+                  <path d="M50 0H0V50" fill="none" stroke="rgba(120,160,220,.08)" stroke-width="1"/>
+                </pattern>
+                <linearGradient id="seaG" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#0b1c36"/>
+                  <stop offset="1" stop-color="#07122a"/>
+                </linearGradient>
+                <linearGradient id="landG" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0" stop-color="#18284a"/>
+                  <stop offset="1" stop-color="#101c36"/>
+                </linearGradient>
+              </defs>
+              <rect width="1000" height="620" fill="url(#seaG)"/>
+              <path d="M120 0 L1000 0 L1000 430 C960 450 900 470 880 520 C860 570 800 620 760 620 L240 620 C200 560 260 500 220 440 C180 380 80 360 100 280 C115 220 60 160 90 100 C105 60 100 30 120 0 Z" fill="url(#landG)" stroke="rgba(56,213,255,.4)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+              <ellipse cx="700" cy="70" rx="150" ry="55" fill="none" stroke="rgba(255,255,255,.05)" vector-effect="non-scaling-stroke"/>
+              <ellipse cx="700" cy="70" rx="95" ry="32" fill="none" stroke="rgba(255,255,255,.05)" vector-effect="non-scaling-stroke"/>
+              <ellipse cx="440" cy="136" rx="110" ry="60" fill="rgba(34,197,94,.10)"/>
+              <ellipse cx="400" cy="160" rx="70" ry="38" fill="rgba(34,197,94,.10)"/>
+              <ellipse cx="800" cy="238" rx="120" ry="60" fill="rgba(245,185,66,.06)"/>
+              <path d="M600 90 L640 30 L680 90 Z M650 100 L700 20 L750 100 Z M720 95 L765 40 L810 95 Z" fill="rgba(150,180,230,.12)" stroke="rgba(150,180,230,.3)" vector-effect="non-scaling-stroke"/>
+              <path d="M760 40 C700 120 640 150 600 210 C560 270 620 330 540 380 C470 425 380 400 330 430 C290 455 250 430 232 452" fill="none" stroke="#2f7bd0" stroke-width="4" stroke-linecap="round" opacity=".75" vector-effect="non-scaling-stroke"/>
+              <path d="M570 290H670M570 310H670M570 330H670M590 270V350M620 270V350M650 270V350" stroke="rgba(56,213,255,.28)" stroke-width="1" fill="none" vector-effect="non-scaling-stroke"/>
+              <path d="M300 560 L520 540 L700 580" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="2" stroke-dasharray="6 6" vector-effect="non-scaling-stroke"/>
+              <rect width="1000" height="620" fill="url(#gridp)"/>
+            </svg>
+            <div class="radar" aria-hidden="true"></div>
+            <span class="map-label sea" style="left:3%;top:46%">Kestrel Bay</span>
+            <span class="map-label sea" style="left:3%;top:88%">Meridian Sea</span>
+            <span class="map-label" style="left:61%;top:4%">Northmoor Range</span>
+            <div class="map-layer" id="mapLayer"></div>
+            <span class="map-note">Fictional geography · not to scale</span>
+          </div>
+        </div>
+
+        <aside class="panel zone-detail" id="zoneDetail" aria-live="polite"></aside>
+      </div>
+    </section>
+
+    <!-- 5. EMERGENCY RESPONSE -->
+    <section id="response" class="block">
+      <header class="section-head">
+        <span class="eyebrow">05 · Emergency response</span>
+        <h2>Emergency Response Panel</h2>
+        <p>Plan updates automatically from the latest analysis, selected zone or opened alert.</p>
+      </header>
+
+      <div class="response-root lv-low" id="responseRoot">
+        <div class="response-head panel">
+          <div class="response-context" id="responseContext"></div>
+          <div class="priority-box" id="respPriority"></div>
+        </div>
+
+        <div class="response-grid">
+          <article class="panel r-card">
+            <h3><span class="r-ico">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+            </span>Evacuation recommendation</h3>
+            <div id="respEvac"></div>
+          </article>
+
+          <article class="panel r-card">
+            <h3><span class="r-ico">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 12 3l9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>
+            </span>Safe-zone recommendation</h3>
+            <div id="respSafe"></div>
+          </article>
+
+          <article class="panel r-card">
+            <h3><span class="r-ico">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>
+            </span>Emergency contacts</h3>
+            <ul class="contacts" id="respContacts"></ul>
+            <p class="fine">Prototype shows Indian national emergency numbers for reference. Verify numbers for your area.</p>
+          </article>
+
+          <article class="panel r-card">
+            <h3><span class="r-ico">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </span>Response checklist</h3>
+            <div class="progress-row"><span class="bar"><i id="respProgressBar"></i></span><span id="respProgress">0 / 0</span></div>
+            <ul class="checklist" id="respChecklist"></ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. AI BRIEFING -->
+    <section id="briefing" class="block">
+      <header class="section-head">
+        <span class="eyebrow">06 · AI insights</span>
+        <h2>AI Situation Briefing</h2>
+        <p>A short narrative generated by rules from the currently selected scenario, zone or alert. It quotes live readings only when they are available.</p>
+      </header>
+
+      <article class="panel briefing">
+        <div class="briefing-top">
+          <div class="briefing-source" id="briefingSource"></div>
+          <button type="button" class="btn btn-ghost btn-sm" id="briefingRegen">Regenerate briefing</button>
+        </div>
+        <div class="briefing-body" id="briefingBody" aria-live="polite"></div>
+        <p class="sim-note">Generated by a rule-based prototype from the inputs labelled LIVE or SIMULATED above. Do not use for real-world decisions.</p>
+      </article>
+    </section>
+  
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        <b>RakshNova</b> · AI Disaster Intelligence &amp; Emergency Response
+        <small>Hackathon prototype built with plain HTML, CSS and JavaScript. All locations are fictional. Weather comes from Open-Meteo and earthquakes from USGS; the browser only requests those two public APIs (using fixed reference-point coordinates) and sends no personal data. Everything else is simulated and labelled.</small>
+      </div>
+      <a href="#top" class="btn btn-ghost btn-sm">Back to top ↑</a>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <noscript><p class="noscript">RakshNova needs JavaScript enabled to run its dashboard and fetch live data.</p></noscript>
+
+  <script src="script.js"></script>
+</body>
+</html>
